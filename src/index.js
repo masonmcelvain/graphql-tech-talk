@@ -1,17 +1,6 @@
 const { ApolloServer } = require('apollo-server');
-
-const typeDefs = `
-  type Query {
-    info: String!
-    feed: [Link!]!
-  }
-
-  type Link {
-    id: ID!
-    description: String!
-    url: String!
-  }
-`
+const fs = require('fs');
+const path = require('path');
 
 // Dummy data
 let links = [{
@@ -24,16 +13,55 @@ const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
     feed: () => links,
+    link: (parent, args) => findLinkById(args.id)
   },
-  Link: {
-    id: (parent) => parent.id,
-    description: (parent) => parent.description,
-    url: (parent) => parent.url,
-  }
+
+  Mutation: {
+    postLink: (parent, args) => {
+      const link = {
+        id: `link-${links.length + 1}`,
+        description: args.description,
+        url: args.url,
+      }
+      links.push(link)
+      return link
+    },
+
+    updateLink: (parent, args) => {
+      const index = findLinkIndexById(args.id)
+      if (index === -1) {
+        return null
+      }
+      const newLink = args
+      links[index] = newLink
+      return newLink
+    },
+
+    deleteLink: (parent, args) => {
+      const index = findLinkIndexById(args.id)
+      if (index === -1) {
+        return null
+      }
+      const link = links[index]
+      links.splice(index, 1)
+      return link
+    }
+  },
+}
+
+function findLinkById(id) {
+  return links.find((link) => link.id === id)
+}
+
+function findLinkIndexById(id) {
+  return links.findIndex((link) => link.id === id)
 }
 
 const server = new ApolloServer({
-  typeDefs,
+  typeDefs: fs.readFileSync(
+    path.join(__dirname, 'schema.graphql'),
+    'utf8'
+  ),
   resolvers,
 })
 
